@@ -1,4 +1,4 @@
-const { Builder, By, until } = require("selenium-webdriver");
+const { Select, Builder, By, until } = require("selenium-webdriver");
 const chrome = require("selenium-webdriver/chrome");
 const { spawn } = require("child_process");
 
@@ -8,6 +8,7 @@ let server;
 const PORT = 4000;
 const BASE_URL = `http://localhost:${PORT}`;
 const DEFAULT_TIMEOUT = 3000;
+const DEFAULT_IMPLICIT_WAIT = 250;
 
 jest.setTimeout(30000);
 
@@ -37,21 +38,34 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
-  await fetch(BASE_URL +"/api/clear", { method: "DELETE" });
+  await fetch(BASE_URL + "/api/clear", { method: "DELETE" });
   await driver.get(BASE_URL);
+  await driver.sleep(100);
 });
 
 /* Helpers */
-async function createTask(title, desc="", priority="medium") {
+async function createTask(title, desc = "", priority = "medium") {
   await driver.findElement(By.id("title")).sendKeys(title);
   await driver.findElement(By.id("description")).sendKeys(desc);
   await driver.findElement(By.id("priority")).sendKeys(priority);
   await driver.findElement(By.id("submitBtn")).click();
-  await new Promise(r => setTimeout(r, 100));
+  await driver.sleep(100);
 }
 
 async function getTasks() {
   return await driver.findElements(By.css(".task-card"));
+}
+
+async function openModalEdit() {
+  await driver.findElement(By.css(".action-btn.edit")).click();
+  let modal = await driver.findElement(By.id("modalOverlay"));
+  await driver.wait(until.elementIsVisible(modal), DEFAULT_IMPLICIT_WAIT);
+}
+
+async function saveModalEdit() {
+  let modal = await driver.findElement(By.id("modalOverlay"));
+  await driver.findElement(By.css("#editForm button[type='submit']")).click();
+  await driver.wait(until.elementIsNotVisible(modal), DEFAULT_IMPLICIT_WAIT);
 }
 
 /* TESTS */
@@ -64,7 +78,7 @@ describe("TaskFlow - Tests E2E", () => {
   });
 
   test("2. Create task", async () => {
-    await createTask("Task 1","Desc");
+    await createTask("Task 1", "Desc");
     const tasks = await getTasks();
     expect(tasks.length).toBe(1);
   });
@@ -95,7 +109,7 @@ describe("TaskFlow - Tests E2E", () => {
     expect(totalText).toBe("0");
 
     await createTask("Stats");
-    await new Promise(r => setTimeout(r, 50));
+    await driver.sleep(100);
 
     totalText = await total.getText();
     expect(totalText).toBe("1");
@@ -117,36 +131,33 @@ describe("TaskFlow - Tests E2E", () => {
 
   test("9. Edit modal opens", async () => {
     await createTask("Edit");
-    await driver.findElement(By.css(".action-btn.edit")).click();
+    await openModalEdit();
 
     let modal = await driver.findElement(By.id("modalOverlay"));
-    await driver.wait(until.elementIsVisible(modal), 100);
-
     expect(await modal.isDisplayed()).toBe(true);
   });
 
-  test("10. Close modal", async () => {
+  test("10. Cancel modal", async () => {
     await createTask("Close");
-    await driver.findElement(By.css(".action-btn.edit")).click();
-    await driver.findElement(By.id("modalClose")).click();
+    await openModalEdit();
 
     let modal = await driver.findElement(By.id("modalOverlay"));
-    await driver.wait(until.elementIsNotVisible(modal), 100);
+    await driver.findElement(By.id("modalClose")).click();
+    await driver.wait(until.elementIsNotVisible(modal), DEFAULT_IMPLICIT_WAIT);
 
     expect(await modal.isDisplayed()).toBe(false);
   });
 
   test("11. Update title", async () => {
     await createTask("Old");
-    await driver.findElement(By.css(".action-btn.edit")).click();
-    let modal = await driver.findElement(By.id("modalOverlay"));
-    await driver.wait(until.elementIsVisible(modal), 100);
+
+    await openModalEdit();
 
     const input = await driver.findElement(By.id("editTitle"));
     await input.clear();
     await input.sendKeys("New");
-    await driver.findElement(By.css("#editForm button[type='submit']")).click();
-    await driver.wait(until.elementIsNotVisible(modal), 100);
+
+    await saveModalEdit();
 
     const tasks = await getTasks();
     const text = await tasks[0].getText();
@@ -155,13 +166,13 @@ describe("TaskFlow - Tests E2E", () => {
 
   test("12. Change status completed", async () => {
     await createTask("Done");
-    await driver.findElement(By.css(".action-btn.edit")).click();
-    let modal = await driver.findElement(By.id("modalOverlay"));
-    await driver.wait(until.elementIsVisible(modal), 100);
+    await openModalEdit();
 
-    await driver.findElement(By.id("editStatus")).sendKeys("completed");
-    await driver.findElement(By.css("#editForm button[type='submit']")).click();
-    await driver.wait(until.elementIsNotVisible(modal), 100);
+    const statusSelect = await driver.findElement(By.id('editStatus'));
+    const select = new Select(statusSelect);
+    await select.selectByValue('completed')
+
+    await saveModalEdit();
 
     const completed = await (driver.findElement(By.id("completedTasks")));
     const completedtext = await completed.getText();
@@ -170,14 +181,13 @@ describe("TaskFlow - Tests E2E", () => {
 
   test("13. Filter completed", async () => {
     await createTask("Done");
-    await driver.findElement(By.css(".action-btn.edit")).click();
-    let modal = await driver.findElement(By.id("modalOverlay"));
-    await driver.wait(until.elementIsVisible(modal), 100);
+    await openModalEdit();
 
-    await driver.findElement(By.id("editStatus")).sendKeys("completed");
-    await driver.findElement(By.id("editStatus")).sendKeys("completed");
-    await driver.findElement(By.css("#editForm button[type='submit']")).click();
-    await driver.wait(until.elementIsNotVisible(modal), 100);
+    const statusSelect = await driver.findElement(By.id('editStatus'));
+    const select = new Select(statusSelect);
+    await select.selectByValue('completed')
+
+    await saveModalEdit();
 
     await driver.findElement(By.css('[data-filter="completed"]')).click();
     const tasks = await getTasks();
@@ -187,7 +197,7 @@ describe("TaskFlow - Tests E2E", () => {
   test("14. Delete task", async () => {
     await createTask("Delete");
     await driver.findElement(By.css(".action-btn.delete")).click();
-    
+
     let alert = await driver.switchTo().alert();
     let alertText = await alert.getText();
     await alert.accept();
@@ -197,18 +207,18 @@ describe("TaskFlow - Tests E2E", () => {
   });
 
   test("15. Empty state visible", async () => {
-    const empty = await driver.findElement(By.id("empty-state"));
+    const empty = await driver.findElement(By.className("empty-state"));
     expect(await empty.isDisplayed()).toBe(true);
   });
 
   test("16. Empty state hidden after create", async () => {
     await createTask("Hide");
-    const empty = await driver.findElement(By.id("empty-state"));
-    expect(await empty.isDisplayed()).toBe(false);
+    const empty = await driver.findElements(By.className("empty-state"));
+    expect(empty.length).toBe(0);
   });
 
   test("17. Priority shown", async () => {
-    await createTask("High","x","high");
+    await createTask("High", "x", "high");
     const tasks = await getTasks();
     const text = await tasks[0].getText();
     expect(text).toContain("High");
@@ -223,21 +233,20 @@ describe("TaskFlow - Tests E2E", () => {
 
   test("19. Cancel edit", async () => {
     await createTask("Cancel");
-    await driver.findElement(By.css(".action-btn.edit")).click();
-    let modal = await driver.findElement(By.id("modalOverlay"));
-    await driver.wait(until.elementIsVisible(modal), 100);
+    await openModalEdit();
 
+    let modal = await driver.findElement(By.id("modalOverlay"));
     await driver.findElement(By.id("cancelEdit")).click();
-    await driver.wait(until.elementIsNotVisible(modal), 100);
+    await driver.wait(until.elementIsNotVisible(modal), DEFAULT_IMPLICIT_WAIT);
 
     expect(await modal.isDisplayed()).toBe(false);
   });
 
   test("20. API sync", async () => {
-    await fetch(BASE_URL+"/api/tasks",{
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({title:"API",description:"x"})
+    await fetch(BASE_URL + "/api/tasks", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: "API", description: "x" })
     });
 
     await driver.navigate().refresh();
