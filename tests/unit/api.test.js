@@ -171,6 +171,24 @@ describe('API Tasks', () => {
     });
   });
 
+  describe('DELETE /api/tasks/clear', () => {
+    it('devrait supprimer toutes les tâches existantes', async () => {
+      taskStore.create({ title: 'To Delete 1' });
+      taskStore.create({ title: 'To Delete 2' });
+      taskStore.create({ title: 'To Delete 3' });
+
+      await request(app)
+        .delete(`/api/clear`)
+        .expect(204);
+
+      const response = await request(app)
+        .get('/api/tasks')
+        .expect(200);
+
+        expect(response.body).toEqual([]);
+    });
+  });
+
   describe('Routes inexistantes', () => {
     it('devrait retourner 404 pour une route inconnue', async () => {
       const response = await request(app)

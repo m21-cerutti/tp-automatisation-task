@@ -12,7 +12,7 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, '../public')));
 
 // Routes API
-app.use('/api/tasks', tasksRouter);
+app.use('/api', tasksRouter);
 
 // Route racine - sert l'interface
 app.get('/', (req, res) => {

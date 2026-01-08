@@ -3,13 +3,13 @@ const router = express.Router();
 const taskStore = require('../models/taskStore');
 
 // GET - Liste toutes les tâches
-router.get('/', (req, res) => {
+router.get('/tasks/', (req, res) => {
   const tasks = taskStore.getAll();
   res.json(tasks);
 });
 
 // GET - Récupère une tâche par ID
-router.get('/:id', (req, res) => {
+router.get('/tasks/:id', (req, res) => {
   const task = taskStore.getById(req.params.id);
   if (!task) {
     return res.status(404).json({ error: 'Tâche non trouvée' });
@@ -18,7 +18,7 @@ router.get('/:id', (req, res) => {
 });
 
 // POST - Crée une nouvelle tâche
-router.post('/', (req, res) => {
+router.post('/tasks/', (req, res) => {
   const { title, description, status, priority } = req.body;
   
   if (!title || title.trim() === '') {
@@ -30,7 +30,7 @@ router.post('/', (req, res) => {
 });
 
 // PUT - Met à jour une tâche
-router.put('/:id', (req, res) => {
+router.put('/tasks/:id', (req, res) => {
   const { title, description, status, priority } = req.body;
   
   if (title !== undefined && title.trim() === '') {
@@ -52,11 +52,17 @@ router.put('/:id', (req, res) => {
 });
 
 // DELETE - Supprime une tâche
-router.delete('/:id', (req, res) => {
+router.delete('/tasks/:id', (req, res) => {
   const deleted = taskStore.delete(req.params.id);
   if (!deleted) {
     return res.status(404).json({ error: 'Tâche non trouvée' });
   }
+  res.status(204).send();
+});
+
+// DELETE - Supprime toutes les tâches
+router.delete('/clear', (req, res) => {
+  taskStore.clear();
   res.status(204).send();
 });
 
