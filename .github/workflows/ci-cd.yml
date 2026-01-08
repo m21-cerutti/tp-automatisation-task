@@ -25,6 +25,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+      - uses: browser-actions/setup-chrome@v2
+      - run: chrome --version
       - run: npm ci
       - run: npm run test:selenium
 

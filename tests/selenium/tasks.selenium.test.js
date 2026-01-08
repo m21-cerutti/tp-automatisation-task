@@ -7,8 +7,8 @@ let server;
 
 const PORT = 4000;
 const BASE_URL = `http://localhost:${PORT}`;
-const DEFAULT_TIMEOUT = 3000;
-const DEFAULT_IMPLICIT_WAIT = 250;
+const DEFAULT_TIMEOUT = 500;
+const DEFAULT_EXPLICIT_WAIT = 1000;
 
 jest.setTimeout(30000);
 
@@ -21,7 +21,8 @@ beforeAll(async () => {
   await new Promise(r => setTimeout(r, 10000));
 
   const options = new chrome.Options();
-  //options.addArguments("--headless");
+  options.addArguments("--headless");
+  options.addArguments("--window-size=1920,1080");
   options.addArguments("--no-sandbox");
 
   driver = await new Builder()
@@ -59,13 +60,13 @@ async function getTasks() {
 async function openModalEdit() {
   await driver.findElement(By.css(".action-btn.edit")).click();
   let modal = await driver.findElement(By.id("modalOverlay"));
-  await driver.wait(until.elementIsVisible(modal), DEFAULT_IMPLICIT_WAIT);
+  await driver.wait(until.elementIsVisible(modal), DEFAULT_EXPLICIT_WAIT);
 }
 
 async function saveModalEdit() {
   let modal = await driver.findElement(By.id("modalOverlay"));
   await driver.findElement(By.css("#editForm button[type='submit']")).click();
-  await driver.wait(until.elementIsNotVisible(modal), DEFAULT_IMPLICIT_WAIT);
+  await driver.wait(until.elementIsNotVisible(modal), DEFAULT_EXPLICIT_WAIT);
 }
 
 /* TESTS */
@@ -143,7 +144,7 @@ describe("TaskFlow - Tests E2E", () => {
 
     let modal = await driver.findElement(By.id("modalOverlay"));
     await driver.findElement(By.id("modalClose")).click();
-    await driver.wait(until.elementIsNotVisible(modal), DEFAULT_IMPLICIT_WAIT);
+    await driver.wait(until.elementIsNotVisible(modal), DEFAULT_EXPLICIT_WAIT);
 
     expect(await modal.isDisplayed()).toBe(false);
   });
@@ -237,7 +238,7 @@ describe("TaskFlow - Tests E2E", () => {
 
     let modal = await driver.findElement(By.id("modalOverlay"));
     await driver.findElement(By.id("cancelEdit")).click();
-    await driver.wait(until.elementIsNotVisible(modal), DEFAULT_IMPLICIT_WAIT);
+    await driver.wait(until.elementIsNotVisible(modal), DEFAULT_EXPLICIT_WAIT);
 
     expect(await modal.isDisplayed()).toBe(false);
   });
